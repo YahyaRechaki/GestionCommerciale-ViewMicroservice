@@ -1,7 +1,9 @@
 package com.example.gestioncommerciale;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -14,9 +16,12 @@ import org.json.JSONObject;
 import java.io.IOException;
 
 import okhttp3.*;
+import com.google.gson.Gson;
+
 
 public class Registration extends AppCompatActivity {
 
+    final String API_URL_REGISTER = "http://192.168.1.123:9090/auth/register";
     OkHttpClient client = new OkHttpClient();
 
     EditText username;
@@ -57,7 +62,7 @@ public class Registration extends AppCompatActivity {
                     RequestBody requestBody = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), json.toString());
 
                     Request request = new Request.Builder()
-                            .url("http://192.168.1.123:9090/auth/register")
+                            .url(API_URL_REGISTER)
                             .post(requestBody)
                             .addHeader("Content-Type", "application/json")
                             .build();
@@ -65,13 +70,39 @@ public class Registration extends AppCompatActivity {
                     client.newCall(request).enqueue(new Callback() {
 
                         @Override
-                        public void onFailure(Call call, IOException e) {
-
+                        public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Toast.makeText(getApplicationContext(), "Request failed, please check your internet connection", Toast.LENGTH_SHORT).show();
+                                }
+                            });
                         }
 
                         @Override
-                        public void onResponse(Call call, Response response) throws IOException {
-
+                        public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                            if(response.isSuccessful()){
+                                // User created successfully
+                                assert response.body() != null;
+                                String jsonString = response.body().string();
+                                Gson gson = new Gson();
+                                final User newUser = gson.fromJson(jsonString, User.class);
+                                runOnUiThread(new Runnable() {
+                                    public void run() {
+                                        Toast.makeText(getApplicationContext(), "Welcome "+ newUser.getUsername(), Toast.LENGTH_SHORT).show();
+                                    }
+                                });
+                                Intent intent = new Intent(Registration.this, Products.class);
+                                intent.putExtra("username", newUser.getUsername());
+                                startActivity(intent);
+                            } else {
+                                // Handle error response
+                                runOnUiThread(new Runnable() {
+                                    public void run() {
+                                        Toast.makeText(getApplicationContext(), "Error Occurred", Toast.LENGTH_SHORT).show();
+                                    }
+                                });
+                            }
                         }
                     });
                 }
